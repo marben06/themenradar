@@ -18,8 +18,9 @@ const app = express();
 app.use(express.json());
 
 // authorization
-
+console.log(process.env.API_KEY)
 function requireApiKey(req, res, next) {
+  console.log(req.headers["x-api-key"])
     const key = req.headers["x-api-key"];
     if (key !== process.env.API_KEY) {
         return res.status(403).json({ error: "Kein Zugriff" });
