@@ -15,7 +15,7 @@
     
     setContext('analyze', analyze);
 
-    
+    console.log(import.meta.env.VITE_API_KEY)
     async function analyze(topic, text, $route) {
         loading = true;
         error = null;
