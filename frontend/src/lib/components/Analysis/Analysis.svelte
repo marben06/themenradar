@@ -13,11 +13,9 @@
     let resultData = $state(null);
     let statusOk =  $state(false);
     
-    
     setContext('analyze', analyze);
 
-    //const API = import.meta.env.VITE_API_BASE;
-
+    
     async function analyze(topic, text, $route) {
         loading = true;
         error = null;
