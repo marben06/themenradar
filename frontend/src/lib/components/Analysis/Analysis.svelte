@@ -31,11 +31,13 @@
             }
             const res = await fetch(`/${$route}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-api-key': import.meta.env.VITE_API_KEY
+                },
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
-
             if (res.ok) {
                 result = data;
                 statusOk = true;

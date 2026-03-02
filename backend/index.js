@@ -4,22 +4,41 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";  
 
+// construct directories
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// absolute path to the Vite build output (frontend/dist)
 const frontendDir = path.join(__dirname, '../frontend/build');
 
 dotenv.config({
   path: path.join(__dirname, '.env')
 });
 
+// create server
 const app = express();
+
 app.use(express.json());
 
+// authorization
+
+function requireApiKey(req, res, next) {
+    console.log("frontend:  " + req.headers["x-api-key"]);
+    const key = req.headers["x-api-key"];
+    console.log("frontend:  " + key)
+    console.log("backend:  " + process.env.VITE_API_KEY)
+    if (key !== process.env.API_KEY) {
+        return res.status(403).json({ error: "Kein Zugriff" });
+    }
+    next();
+}
+
+
+// Hugging Face Setup
 const HF_ENDPOINT = "https://router.huggingface.co/hf-inference/models/MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"; // usually this works better but wasn't reachable atm facebook/bart-large-mnli
 const HF_HEADERS  = { Authorization: `Bearer ${process.env.HF_TOKEN}` };
 const GNEWS_URL   = "https://gnews.io/api/v4/search";
 
+
+// Hugging Face Functions
 async function sentiment(topic, text) {
   const payload = {
     inputs: text,
@@ -49,10 +68,18 @@ async function sentiment(topic, text) {
 
 
 app.use(express.static(frontendDir));  
-              // serve JS/CSS/assets
+
+
 app.get('/{*splat}', (_, res) =>
   res.sendFile(path.join(frontendDir, 'index.html'))
 );
+
+
+app.get("/health", (_, res) => res.send("ok"));
+
+
+app.use(requireApiKey);   
+
 
 app.post("/analyze", async (req, res) => {
   try {
@@ -138,8 +165,6 @@ app.post("/analyze-media", async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
-
-app.get("/health", (_, res) => res.send("ok"));
 
 
 const PORT = process.env.PORT || 5000;
