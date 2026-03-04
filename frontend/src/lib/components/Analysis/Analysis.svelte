@@ -26,6 +26,7 @@
             } else {
                 payload = { topic };
             }
+            console.log(payload)
             const res = await fetch(`/${$route}`, {
                 method: 'POST',
                 headers: { 
