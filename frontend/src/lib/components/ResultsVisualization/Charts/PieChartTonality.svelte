@@ -4,7 +4,7 @@
   import { interpolate } from "d3-interpolate";
   import { select } from "d3-selection";
   import { fade } from "svelte/transition";
-  import { innerWidth, innerHeight } from 'svelte/reactivity/window';
+  import { innerWidth } from 'svelte/reactivity/window';
 
   // Svelte 5: access reactive props
   let { data } = $props();

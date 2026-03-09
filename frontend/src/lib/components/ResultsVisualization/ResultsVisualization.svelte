@@ -1,5 +1,4 @@
 <script>
-	import { resolveRoute } from "$app/paths";
     import PieChartTonality from "./Charts/PieChartTonality.svelte";
     import LineChartHistorical from "./Charts/LineChartHistorical.svelte";
     import Summary from "./Summary.svelte";
@@ -7,7 +6,7 @@
     import { ownTextSelected } from "$lib/shared";
 
     let { resultData, resolvedTopic } = $props();
-    let element; 
+    let element = $state(null); 
 
     let pieChartData = $state(null);
     let summary = $state(null);
