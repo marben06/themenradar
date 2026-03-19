@@ -18,7 +18,6 @@ const app = express();
 app.use(express.json());
 
 // authorization
-console.log(process.env.API_KEY)
 function requireApiKey(req, res, next) {
     const key = req.headers["x-api-key"];
     if (key !== process.env.API_KEY) {
