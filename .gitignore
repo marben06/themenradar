@@ -1,4 +1,39 @@
+# System
 .DS_Store
+Thumbs.db
+
+# Environment
 .env
-venv
-node_modules
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Paraglide (generated)
+frontend/src/lib/paraglide/
+
+# Build output
+dist/
+build/
+
+# Python (venv)
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+coverage/
+.nyc_output/
+
+# OS
+*.pem
+.cache/
