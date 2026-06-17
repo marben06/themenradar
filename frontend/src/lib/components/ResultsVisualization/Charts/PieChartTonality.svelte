@@ -12,7 +12,7 @@
   let pieData = $state();
   let width = $state(360);
   let height = $derived(width);
-  let outerRadiusFactor =  $state(0.8);
+  let outerRadiusFactor = $state(0.8);
 
   $effect(() => {
     if (innerWidth.current <= 1000) {
