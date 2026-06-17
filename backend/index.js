@@ -2,7 +2,9 @@ import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import path from "path";
-import { fileURLToPath } from "url";  
+import { fileURLToPath } from "url";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 
 // construct directories
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -15,9 +17,48 @@ dotenv.config({
 
 // create server
 const app = express();
-app.use(express.json());
 
-// authorization
+// -------------------------------------------------------
+// Sicherheitsheader (Helmet)
+// -------------------------------------------------------
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"], // bei Bedarf anpassen (Svelte/Vite Inline-Styles)
+      imgSrc: ["'self'", "data:"],
+      fontSrc: ["'self'"],
+      connectSrc: ["'self'"], // Frontend spricht nur den eigenen Server an
+      frameAncestors: ["'none'"],
+      baseUri: ["'self'"],
+      objectSrc: ["'none'"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+  },
+  // Da das Frontend selbst Bilder/Skripte vom eigenen Server lädt,
+  // crossOriginResourcePolicy meist unproblematisch auf "same-origin" (Default)
+}));
+
+app.use(express.json({ limit: "100kb" })); // Payload-Größe begrenzen gegen Missbrauch
+
+// -------------------------------------------------------
+// Rate Limiting – wichtig, da externe (kostenpflichtige) APIs angesprochen werden!
+// -------------------------------------------------------
+const analyzeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 Minuten
+  max: 30, // max. 30 Requests pro IP in diesem Zeitraum
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Zu viele Anfragen, bitte später erneut versuchen." }
+});
+
+// -------------------------------------------------------
+// Authorization
+// -------------------------------------------------------
 function requireApiKey(req, res, next) {
     const key = req.headers["x-api-key"];
     if (key !== process.env.API_KEY) {
@@ -26,12 +67,10 @@ function requireApiKey(req, res, next) {
     next();
 }
 
-
 // Hugging Face Setup
-const HF_ENDPOINT = "https://router.huggingface.co/hf-inference/models/MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"; // usually this works better but wasn't reachable atm facebook/bart-large-mnli
+const HF_ENDPOINT = "https://router.huggingface.co/hf-inference/models/MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli";
 const HF_HEADERS  = { Authorization: `Bearer ${process.env.HF_TOKEN}` };
 const GNEWS_URL   = "https://gnews.io/api/v4/search";
-
 
 // Hugging Face Functions
 async function sentiment(topic, text) {
@@ -61,36 +100,52 @@ async function sentiment(topic, text) {
   };
 }
 
-
-app.use(express.static(frontendDir));  
-
+app.use(express.static(frontendDir));
 
 app.get('/{*splat}', (_, res) =>
   res.sendFile(path.join(frontendDir, 'index.html'))
 );
 
-
 app.get("/health", (_, res) => res.send("ok"));
 
+app.use(requireApiKey);
+app.use(analyzeLimiter); // Rate-Limit nur auf geschützte API-Routen
 
-app.use(requireApiKey);   
-
+// -------------------------------------------------------
+// Eingabevalidierung – einfache, aber wichtige Helper
+// -------------------------------------------------------
+function isValidTopic(topic) {
+  return typeof topic === "string" && topic.trim().length > 0 && topic.trim().length <= 200;
+}
+function isValidText(text) {
+  return typeof text === "string" && text.trim().length <= 5000;
+}
 
 app.post("/analyze", async (req, res) => {
   try {
     const { topic = "", text = "" } = req.body;
+
+    if (!isValidTopic(topic)) {
+      return res.status(400).json({ error: "Ungültiges oder fehlendes 'topic'" });
+    }
+    if (!isValidText(text)) {
+      return res.status(400).json({ error: "Ungültiger oder zu langer 'text'" });
+    }
+
     const out = await sentiment(topic.trim(), text.trim());
     res.json(out);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error(e);
+    res.status(500).json({ error: "Interner Fehler bei der Analyse" }); // keine Details nach außen
   }
 });
-
 
 app.post("/analyze-media", async (req, res) => {
   try {
     const topic = (req.body.topic || "").trim();
-    if (!topic) return res.status(400).json({ error: "Missing topic" });
+    if (!isValidTopic(topic)) {
+      return res.status(400).json({ error: "Ungültiges oder fehlendes 'topic'" });
+    }
 
     const from = new Date(Date.now() - 3 * 365 * 24 * 3600 * 1e3)
                    .toISOString().slice(0, 10);
@@ -152,15 +207,14 @@ app.post("/analyze-media", async (req, res) => {
       },
       monthly_percentages,
       results,
-      mostRecentArticle: results[0]  
+      mostRecentArticle: results[0]
     });
 
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: "Interner Fehler bei der Medienanalyse" }); // keine Details nach außen
   }
 });
-
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
